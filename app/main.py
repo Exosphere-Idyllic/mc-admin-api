@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import auth, minecraft, users
+from app.routers import auth, minecraft, users, system, hardware
 from app.core.init_db import init_db
 
 app = FastAPI(
@@ -15,6 +15,8 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(minecraft.router)
 app.include_router(users.router)
+app.include_router(system.router)
+app.include_router(hardware.router)
 
 # =========================
 # STARTUP

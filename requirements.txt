@@ -7,4 +7,4 @@ python-dotenv==1.2.1
 pydantic==2.12.5
 rcon==2.4.9
 psutil==7.2.2
-
+pydantic-settings==2.5.2

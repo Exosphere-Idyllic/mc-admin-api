@@ -9,14 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.user import User
+from app.core.config import settings
 
 # =====================
 # CONFIG
 # =====================
 
-SECRET_KEY = "CAMBIA_ESTE_SECRET_EN_PRODUCCION"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.JWT_EXPIRE_MINUTES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
