@@ -13,19 +13,10 @@ class SystemdService:
         self.playit_service = settings.PLAYIT_SERVICE
     
     def _run_systemctl(self, action: str, service: str) -> str:
-        """
-        Ejecuta comando systemctl con sudo
-        
-        Args:
-            action: start, stop, restart, status, is-active
-            service: nombre del servicio
-            
-        Returns:
-            stdout del comando
-        """
         try:
+            # Usamos la ruta completa /usr/bin/systemctl
             result = subprocess.run(
-                ["sudo", "systemctl", action, service],
+                ["sudo", "/usr/bin/systemctl", action, service],
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -39,7 +30,12 @@ class SystemdService:
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"Timeout ejecutando: systemctl {action} {service}")
         except FileNotFoundError:
-            raise RuntimeError("systemctl no encontrado. ¿Estás en Linux con systemd?")
+            # Si /usr/bin/ no funciona, intentamos /bin/
+            try:
+                result = subprocess.run(["sudo", "/bin/systemctl", action, service], capture_output=True, text=True, timeout=10)
+                return result.stdout.strip()
+            except:
+                raise RuntimeError("systemctl no encontrado en /usr/bin/ ni /bin/")
     
     def start(self, service: ServiceName) -> Dict:
         """Inicia un servicio"""
@@ -92,21 +88,11 @@ class SystemdService:
             }
     
     def get_logs(self, service: ServiceName, lines: int = 100) -> str:
-        """
-        Obtiene logs de un servicio
-        
-        Args:
-            service: minecraft o playit
-            lines: número de líneas a obtener
-            
-        Returns:
-            logs como string
-        """
         service_name = self.minecraft_service if service == "minecraft" else self.playit_service
-        
         try:
+            # Usamos la ruta completa /usr/bin/journalctl
             result = subprocess.run(
-                ["sudo", "journalctl", "-u", service_name, "-n", str(lines), "--no-pager"],
+                ["sudo", "/usr/bin/journalctl", "-u", service_name, "-n", str(lines), "--no-pager"],
                 capture_output=True,
                 text=True,
                 timeout=5

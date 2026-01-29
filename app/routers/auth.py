@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.auth import authenticate_user, create_access_token
+
+# Esquema para aceptar JSON
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 router = APIRouter(
     prefix="/auth",
@@ -12,10 +17,11 @@ router = APIRouter(
 
 @router.post("/login")
 def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    login_data: LoginRequest, # Cambiado de OAuth2PasswordRequestForm a nuestro esquema JSON
     db: Session = Depends(get_db)
 ):
-    user = authenticate_user(db, form_data.username, form_data.password)
+    # Usamos login_data.username y login_data.password
+    user = authenticate_user(db, login_data.username, login_data.password)
 
     if not user:
         raise HTTPException(
