@@ -102,36 +102,24 @@ class SystemdService:
             raise RuntimeError(f"Error obteniendo logs: {e}")
     
     def get_uptime(self, service: ServiceName) -> int:
-        """
-        Obtiene uptime del servicio en segundos
-        
-        Returns:
-            Segundos desde que el servicio está activo
-        """
         service_name = self.minecraft_service if service == "minecraft" else self.playit_service
-        
         try:
+            # Usamos ActiveEnterTimestampMonotonic que devuelve microsegundos desde el boot
+            # Es mucho más fiable que parsear fechas de texto
             result = subprocess.run(
-                ["systemctl", "show", service_name, "--property=ActiveEnterTimestamp"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["systemctl", "show", service_name, "--property=ActiveEnterTimestampMonotonic"],
+                capture_output=True, text=True, timeout=5
             )
-            
-            timestamp_line = result.stdout.strip()
-            if not timestamp_line or "=" not in timestamp_line:
-                return 0
-            
-            timestamp_str = timestamp_line.split("=")[1].strip()
-            if not timestamp_str or timestamp_str == "n/a":
-                return 0
-            
-            from datetime import datetime
-            start_time = datetime.strptime(timestamp_str, "%a %Y-%m-%d %H:%M:%S %Z")
-            uptime = (datetime.now() - start_time).total_seconds()
-            
-            return int(uptime)
-            
+            line = result.stdout.strip()
+            if "=" in line:
+                micro_str = line.split("=")[1]
+                if micro_str and micro_str != "0":
+                    # Obtenemos el uptime del sistema actual para calcular la diferencia
+                    with open('/proc/uptime', 'r') as f:
+                        sys_uptime = float(f.readline().split()[0])
+                    service_start_sys = int(micro_str) / 1000000
+                    return int(sys_uptime - service_start_sys)
+            return 0
         except Exception:
             return 0
 

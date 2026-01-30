@@ -13,7 +13,6 @@ router = APIRouter(
     tags=["Minecraft"]
 )
 
-
 # =====================
 # SCHEMAS
 # =====================
@@ -21,39 +20,41 @@ router = APIRouter(
 class CommandRequest(BaseModel):
     command: str
 
-
 class MessageRequest(BaseModel):
     message: str
-
 
 # =====================
 # STATUS & PLAYERS
 # =====================
 
 @router.get("/players")
-def get_players(
-    _: TokenData = Depends(require_roles(["admin", "operator", "viewer"]))
+async def get_players():
+    """Obtiene la lista de jugadores conectados de forma asíncrona"""
+    return await rcon_service.get_player_list()
+
+@router.post("/op/{player}")
+async def make_op(
+    player: str,
+    _: TokenData = Depends(require_roles(["admin"]))
 ):
-    """Obtiene lista de jugadores conectados"""
     try:
-        player_data = rcon_service.get_player_list()
-        return player_data
+        response = await rcon_service.make_op(player)
+        return {"success": True, "player": player, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
+    
 # =====================
 # GENERIC COMMAND
 # =====================
 
 @router.post("/command")
-def run_command(
+async def run_command(
     data: CommandRequest,
     user: TokenData = Depends(require_roles(["admin", "operator"]))
 ):
     """Ejecuta un comando RCON genérico (validado)"""
     
-    # Validar comando
+    # Validar comando según el rol del usuario
     if not validate_command(data.command, user.roles):
         raise HTTPException(
             status_code=403,
@@ -61,7 +62,8 @@ def run_command(
         )
     
     try:
-        result = rcon_service.execute(data.command)
+        # Usamos await porque la comunicación de red es asíncrona
+        result = await rcon_service.execute(data.command)
         return {
             "success": True,
             "command": data.command,
@@ -71,7 +73,6 @@ def run_command(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # =====================
 # ALLOWED COMMANDS
 # =====================
@@ -80,7 +81,7 @@ def run_command(
 def get_user_allowed_commands(
     user: TokenData = Depends(require_roles(["admin", "operator"]))
 ):
-    """Retorna comandos permitidos para el usuario actual"""
+    """Retorna comandos permitidos (Síncrono ya que no requiere RCON)"""
     allowed = get_allowed_commands(user.roles)
     examples = get_command_examples()
     
@@ -90,19 +91,18 @@ def get_user_allowed_commands(
         "user_roles": user.roles
     }
 
-
 # =====================
 # BROADCAST MESSAGE
 # =====================
 
 @router.post("/message")
-def send_broadcast_message(
+async def send_broadcast_message(
     data: MessageRequest,
     user: TokenData = Depends(require_roles(["admin", "operator"]))
 ):
     """Envía mensaje broadcast a todos los jugadores"""
     try:
-        response = rcon_service.send_message(data.message)
+        response = await rcon_service.send_message(data.message)
         return {
             "success": True,
             "message": data.message,
@@ -112,81 +112,71 @@ def send_broadcast_message(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # =====================
 # WHITELIST
 # =====================
 
 @router.post("/whitelist/add/{player}")
-def whitelist_add(
+async def whitelist_add(
     player: str,
     _: TokenData = Depends(require_roles(["admin", "operator"]))
 ):
-    """Agrega jugador a whitelist"""
     try:
-        response = rcon_service.whitelist_add(player)
+        response = await rcon_service.whitelist_add(player)
         return {"success": True, "player": player, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.post("/whitelist/remove/{player}")
-def whitelist_remove(
+async def whitelist_remove(
     player: str,
     _: TokenData = Depends(require_roles(["admin"]))
 ):
-    """Remueve jugador de whitelist"""
     try:
-        response = rcon_service.whitelist_remove(player)
+        response = await rcon_service.whitelist_remove(player)
         return {"success": True, "player": player, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # =====================
 # KICK
 # =====================
 
 @router.post("/kick/{player}")
-def kick_player(
+async def kick_player(
     player: str,
-    reason: str = "Kicked by admin",
+    reason: str = "Expulsado por el administrador",
     _: TokenData = Depends(require_roles(["admin", "operator"]))
 ):
-    """Expulsa a un jugador"""
     try:
-        response = rcon_service.kick_player(player, reason)
+        response = await rcon_service.kick_player(player, reason)
         return {"success": True, "player": player, "reason": reason, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # =====================
 # BAN
 # =====================
 
 @router.post("/ban/{player}")
-def ban_player(
+async def ban_player(
     player: str,
-    reason: str = "Banned by admin",
+    reason: str = "Baneado por el administrador",
     _: TokenData = Depends(require_roles(["admin"]))
 ):
-    """Banea a un jugador"""
     try:
-        response = rcon_service.ban_player(player, reason)
+        response = await rcon_service.ban_player(player, reason)
         return {"success": True, "player": player, "reason": reason, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.post("/pardon/{player}")
-def pardon_player(
+async def pardon_player(
     player: str,
     _: TokenData = Depends(require_roles(["admin"]))
 ):
-    """Remueve ban de un jugador"""
     try:
-        response = rcon_service.pardon_player(player)
+        response = await rcon_service.pardon_player(player)
         return {"success": True, "player": player, "response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
